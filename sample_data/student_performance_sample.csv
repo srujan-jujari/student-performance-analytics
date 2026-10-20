@@ -1,0 +1,241 @@
+student_id,name,subject,marks,max_marks,attendance
+S001,Aarav Patel,Mathematics,52,100,45
+S001,Aarav Patel,Computer Science,37,100,45
+S001,Aarav Patel,Physics,36,100,45
+S001,Aarav Patel,English,36,100,45
+S002,Aditi Nair,Mathematics,55,100,46
+S002,Aditi Nair,Computer Science,57,100,46
+S002,Aditi Nair,Physics,62,100,46
+S002,Aditi Nair,English,51,100,46
+S003,Aditya Singh,Mathematics,56,100,44
+S003,Aditya Singh,Computer Science,55,100,44
+S003,Aditya Singh,Physics,57,100,44
+S003,Aditya Singh,English,61,100,44
+S004,Akash Joshi,Mathematics,79,100,49
+S004,Akash Joshi,Computer Science,60,100,49
+S004,Akash Joshi,Physics,77,100,49
+S004,Akash Joshi,English,66,100,49
+S005,Ananya Sharma,Mathematics,61,100,59
+S005,Ananya Sharma,Computer Science,68,100,59
+S005,Ananya Sharma,Physics,72,100,59
+S005,Ananya Sharma,English,62,100,59
+S006,Arjun Patel,Mathematics,60,100,42
+S006,Arjun Patel,Computer Science,51,100,42
+S006,Arjun Patel,Physics,48,100,42
+S006,Arjun Patel,English,46,100,42
+S007,Avni Nair,Mathematics,65,100,46
+S007,Avni Nair,Computer Science,51,100,46
+S007,Avni Nair,Physics,44,100,46
+S007,Avni Nair,English,43,100,46
+S008,Bhavya Singh,Mathematics,45,100,54
+S008,Bhavya Singh,Computer Science,61,100,54
+S008,Bhavya Singh,Physics,45,100,54
+S008,Bhavya Singh,English,53,100,54
+S009,Charan Joshi,Mathematics,53,100,50
+S009,Charan Joshi,Computer Science,44,100,50
+S009,Charan Joshi,Physics,47,100,50
+S009,Charan Joshi,English,33,100,50
+S010,Diya Sharma,Mathematics,50,100,54
+S010,Diya Sharma,Computer Science,42,100,54
+S010,Diya Sharma,Physics,59,100,54
+S010,Diya Sharma,English,53,100,54
+S011,Dhruv Patel,Mathematics,62,100,53
+S011,Dhruv Patel,Computer Science,42,100,53
+S011,Dhruv Patel,Physics,41,100,53
+S011,Dhruv Patel,English,61,100,53
+S012,Divya Nair,Mathematics,48,100,49
+S012,Divya Nair,Computer Science,73,100,49
+S012,Divya Nair,Physics,53,100,49
+S012,Divya Nair,English,73,100,49
+S013,Gaurav Singh,Mathematics,30,100,65
+S013,Gaurav Singh,Computer Science,36,100,65
+S013,Gaurav Singh,Physics,42,100,65
+S013,Gaurav Singh,English,48,100,65
+S014,Isha Joshi,Mathematics,26,100,73
+S014,Isha Joshi,Computer Science,26,100,73
+S014,Isha Joshi,Physics,21,100,73
+S014,Isha Joshi,English,36,100,73
+S015,Ishaan Sharma,Mathematics,31,100,70
+S015,Ishaan Sharma,Computer Science,32,100,70
+S015,Ishaan Sharma,Physics,17,100,70
+S015,Ishaan Sharma,English,29,100,70
+S016,Kavya Patel,Mathematics,22,100,85
+S016,Kavya Patel,Computer Science,31,100,85
+S016,Kavya Patel,Physics,29,100,85
+S016,Kavya Patel,English,25,100,85
+S017,Kiran Nair,Mathematics,38,100,82
+S017,Kiran Nair,Computer Science,27,100,82
+S017,Kiran Nair,Physics,43,100,82
+S017,Kiran Nair,English,41,100,82
+S018,Krishna Singh,Mathematics,18,100,86
+S018,Krishna Singh,Computer Science,37,100,86
+S018,Krishna Singh,Physics,12,100,86
+S018,Krishna Singh,English,36,100,86
+S019,Manav Joshi,Mathematics,30,100,72
+S019,Manav Joshi,Computer Science,24,100,72
+S019,Manav Joshi,Physics,28,100,72
+S019,Manav Joshi,English,40,100,72
+S020,Meera Sharma,Mathematics,26,100,84
+S020,Meera Sharma,Computer Science,40,100,84
+S020,Meera Sharma,Physics,35,100,84
+S020,Meera Sharma,English,32,100,84
+S021,Nikhil Patel,Mathematics,28,100,82
+S021,Nikhil Patel,Computer Science,32,100,82
+S021,Nikhil Patel,Physics,28,100,82
+S021,Nikhil Patel,English,31,100,82
+S022,Nisha Nair,Mathematics,41,100,85
+S022,Nisha Nair,Computer Science,36,100,85
+S022,Nisha Nair,Physics,31,100,85
+S022,Nisha Nair,English,46,100,85
+S023,Pooja Singh,Mathematics,33,100,80
+S023,Pooja Singh,Computer Science,29,100,80
+S023,Pooja Singh,Physics,26,100,80
+S023,Pooja Singh,English,38,100,80
+S024,Pranav Joshi,Mathematics,36,100,77
+S024,Pranav Joshi,Computer Science,13,100,77
+S024,Pranav Joshi,Physics,39,100,77
+S024,Pranav Joshi,English,15,100,77
+S025,Rahul Sharma,Mathematics,54,100,62
+S025,Rahul Sharma,Computer Science,74,100,62
+S025,Rahul Sharma,Physics,70,100,62
+S025,Rahul Sharma,English,62,100,62
+S026,Riya Patel,Mathematics,43,100,69
+S026,Riya Patel,Computer Science,43,100,69
+S026,Riya Patel,Physics,50,100,69
+S026,Riya Patel,English,45,100,69
+S027,Rohan Nair,Mathematics,54,100,68
+S027,Rohan Nair,Computer Science,64,100,68
+S027,Rohan Nair,Physics,37,100,68
+S027,Rohan Nair,English,58,100,68
+S028,Saanvi Singh,Mathematics,53,100,71
+S028,Saanvi Singh,Computer Science,60,100,71
+S028,Saanvi Singh,Physics,49,100,71
+S028,Saanvi Singh,English,56,100,71
+S029,Sai Joshi,Mathematics,73,100,64
+S029,Sai Joshi,Computer Science,63,100,64
+S029,Sai Joshi,Physics,56,100,64
+S029,Sai Joshi,English,62,100,64
+S030,Sanjana Sharma,Mathematics,48,100,66
+S030,Sanjana Sharma,Computer Science,34,100,66
+S030,Sanjana Sharma,Physics,57,100,66
+S030,Sanjana Sharma,English,62,100,66
+S031,Shreya Patel,Mathematics,53,100,71
+S031,Shreya Patel,Computer Science,61,100,71
+S031,Shreya Patel,Physics,42,100,71
+S031,Shreya Patel,English,53,100,71
+S032,Siddharth Nair,Mathematics,59,100,74
+S032,Siddharth Nair,Computer Science,52,100,74
+S032,Siddharth Nair,Physics,41,100,74
+S032,Siddharth Nair,English,58,100,74
+S033,Tanvi Singh,Mathematics,64,100,70
+S033,Tanvi Singh,Computer Science,51,100,70
+S033,Tanvi Singh,Physics,49,100,70
+S033,Tanvi Singh,English,56,100,70
+S034,Varun Joshi,Mathematics,51,100,72
+S034,Varun Joshi,Computer Science,58,100,72
+S034,Varun Joshi,Physics,50,100,72
+S034,Varun Joshi,English,34,100,72
+S035,Vihaan Sharma,Mathematics,54,100,69
+S035,Vihaan Sharma,Computer Science,39,100,69
+S035,Vihaan Sharma,Physics,42,100,69
+S035,Vihaan Sharma,English,50,100,69
+S036,Yash Patel,Mathematics,45,100,74
+S036,Yash Patel,Computer Science,39,100,74
+S036,Yash Patel,Physics,45,100,74
+S036,Yash Patel,English,66,100,74
+S037,Zoya Nair,Mathematics,33,100,69
+S037,Zoya Nair,Computer Science,54,100,69
+S037,Zoya Nair,Physics,46,100,69
+S037,Zoya Nair,English,57,100,69
+S038,Abhinav Singh,Mathematics,70,100,61
+S038,Abhinav Singh,Computer Science,77,100,61
+S038,Abhinav Singh,Physics,57,100,61
+S038,Abhinav Singh,English,57,100,61
+S039,Amrita Joshi,Mathematics,61,100,70
+S039,Amrita Joshi,Computer Science,49,100,70
+S039,Amrita Joshi,Physics,52,100,70
+S039,Amrita Joshi,English,60,100,70
+S040,Anirudh Sharma,Mathematics,61,100,73
+S040,Anirudh Sharma,Computer Science,54,100,73
+S040,Anirudh Sharma,Physics,65,100,73
+S040,Anirudh Sharma,English,72,100,73
+S041,Deepa Patel,Mathematics,88,100,99
+S041,Deepa Patel,Computer Science,100,100,99
+S041,Deepa Patel,Physics,91,100,99
+S041,Deepa Patel,English,94,100,99
+S042,Harini Nair,Mathematics,90,100,97
+S042,Harini Nair,Computer Science,93,100,97
+S042,Harini Nair,Physics,100,100,97
+S042,Harini Nair,English,95,100,97
+S043,Jatin Singh,Mathematics,52,100,90
+S043,Jatin Singh,Computer Science,52,100,90
+S043,Jatin Singh,Physics,47,100,90
+S043,Jatin Singh,English,55,100,90
+S044,Keerthi Joshi,Mathematics,92,100,76
+S044,Keerthi Joshi,Computer Science,82,100,76
+S044,Keerthi Joshi,Physics,93,100,76
+S044,Keerthi Joshi,English,82,100,76
+S045,Lakshmi Sharma,Mathematics,64,100,76
+S045,Lakshmi Sharma,Computer Science,62,100,76
+S045,Lakshmi Sharma,Physics,43,100,76
+S045,Lakshmi Sharma,English,49,100,76
+S046,Madhav Patel,Mathematics,67,100,78
+S046,Madhav Patel,Computer Science,50,100,78
+S046,Madhav Patel,Physics,42,100,78
+S046,Madhav Patel,English,56,100,78
+S047,Neha Nair,Mathematics,76,100,83
+S047,Neha Nair,Computer Science,70,100,83
+S047,Neha Nair,Physics,61,100,83
+S047,Neha Nair,English,72,100,83
+S048,Omkar Singh,Mathematics,92,100,80
+S048,Omkar Singh,Computer Science,89,100,80
+S048,Omkar Singh,Physics,81,100,80
+S048,Omkar Singh,English,99,100,80
+S049,Pallavi Joshi,Mathematics,70,100,91
+S049,Pallavi Joshi,Computer Science,67,100,91
+S049,Pallavi Joshi,Physics,67,100,91
+S049,Pallavi Joshi,English,85,100,91
+S050,Rakesh Sharma,Mathematics,73,100,89
+S050,Rakesh Sharma,Computer Science,73,100,89
+S050,Rakesh Sharma,Physics,74,100,89
+S050,Rakesh Sharma,English,87,100,89
+S051,Sahana Patel,Mathematics,62,100,99
+S051,Sahana Patel,Computer Science,61,100,99
+S051,Sahana Patel,Physics,61,100,99
+S051,Sahana Patel,English,44,100,99
+S052,Tejas Nair,Mathematics,86,100,77
+S052,Tejas Nair,Computer Science,73,100,77
+S052,Tejas Nair,Physics,88,100,77
+S052,Tejas Nair,English,90,100,77
+S053,Uday Singh,Mathematics,59,100,79
+S053,Uday Singh,Computer Science,59,100,79
+S053,Uday Singh,Physics,70,100,79
+S053,Uday Singh,English,67,100,79
+S054,Veda Joshi,Mathematics,70,100,80
+S054,Veda Joshi,Computer Science,73,100,80
+S054,Veda Joshi,Physics,79,100,80
+S054,Veda Joshi,English,72,100,80
+S055,Vikram Sharma,Mathematics,91,100,78
+S055,Vikram Sharma,Computer Science,93,100,78
+S055,Vikram Sharma,Physics,93,100,78
+S055,Vikram Sharma,English,83,100,78
+S056,Yamini Patel,Mathematics,61,100,79
+S056,Yamini Patel,Computer Science,58,100,79
+S056,Yamini Patel,Physics,67,100,79
+S056,Yamini Patel,English,41,100,79
+S057,Aniket Nair,Mathematics,58,100,78
+S057,Aniket Nair,Computer Science,66,100,78
+S057,Aniket Nair,Physics,68,100,78
+S057,Aniket Nair,English,68,100,78
+S058,Bharat Singh,Mathematics,91,100,82
+S058,Bharat Singh,Computer Science,64,100,82
+S058,Bharat Singh,Physics,68,100,82
+S058,Bharat Singh,English,75,100,82
+S059,Chaitra Joshi,Mathematics,70,100,76
+S059,Chaitra Joshi,Computer Science,87,100,76
+S059,Chaitra Joshi,Physics,87,100,76
+S059,Chaitra Joshi,English,76,100,76
+S060,Dinesh Sharma,Mathematics,87,100,85
+S060,Dinesh Sharma,Computer Science,88,100,85
+S060,Dinesh Sharma,Physics,90,100,85
+S060,Dinesh Sharma,English,82,100,85

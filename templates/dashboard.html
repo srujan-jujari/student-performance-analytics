@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Student Performance Analytics{% endblock %}
+
+{% block content %}
+<header class="dashboard-header">
+    <div>
+        <h1>Dashboard</h1>
+        <p class="text-muted mb-0">Performance overview and student risk analysis.</p>
+    </div>
+    {% if metrics %}
+    <button class="btn btn-primary" id="download-csv" type="button">
+        Download filtered records CSV
+    </button>
+    {% endif %}
+</header>
+
+{% if metrics %}
+{% if storage_message %}
+<div class="alert alert-{{ storage_message_type }} my-3" role="status">
+    {{ storage_message }}
+</div>
+{% endif %}
+
+<section class="row g-3 my-3" aria-label="Performance metrics">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card metric-card h-100"><div class="card-body">
+            <h2 class="h6">Total records</h2>
+            <p class="h3 mb-0">{{ metrics.total_records }}</p>
+        </div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card metric-card h-100"><div class="card-body">
+            <h2 class="h6">Average percentage</h2>
+            <p class="h3 mb-0">{{ "%.1f"|format(metrics.average_percentage) }}%</p>
+        </div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card metric-card h-100"><div class="card-body">
+            <h2 class="h6">Average attendance</h2>
+            <p class="h3 mb-0">{{ "%.1f"|format(metrics.average_attendance) }}%</p>
+        </div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card metric-card h-100"><div class="card-body">
+            <h2 class="h6">Pass rate</h2>
+            <p class="h3 mb-0">{{ "%.1f"|format(metrics.pass_rate) }}%</p>
+        </div></div>
+    </div>
+</section>
+
+<section class="d-flex flex-wrap gap-2 my-4" aria-label="Cloudinary storage actions">
+    <form action="{{ url_for('store_source_csv') }}" method="post" enctype="multipart/form-data" class="cloud-storage-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button
+            class="btn btn-outline-primary"
+            type="submit"
+            {% if completed_action == "source" %}disabled{% endif %}
+        >
+            {% if completed_action == "source" %}Source CSV stored{% else %}Store source CSV in Cloudinary{% endif %}
+        </button>
+    </form>
+    <form action="{{ url_for('store_analyzed_report') }}" method="post" enctype="multipart/form-data" class="cloud-storage-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button
+            class="btn btn-outline-secondary"
+            type="submit"
+            {% if completed_action == "report" %}disabled{% endif %}
+        >
+            {% if completed_action == "report" %}Analyzed report stored{% else %}Store analyzed report in Cloudinary{% endif %}
+        </button>
+    </form>
+</section>
+
+<section class="my-4" aria-labelledby="risk-heading">
+    <h2 id="risk-heading" class="section-heading">Risk levels</h2>
+    <div class="d-flex flex-wrap gap-2">
+        <span class="badge text-bg-danger">High: {{ risk_counts.High }}</span>
+        <span class="badge text-bg-warning">Medium: {{ risk_counts.Medium }}</span>
+        <span class="badge text-bg-success">Low: {{ risk_counts.Low }}</span>
+    </div>
+</section>
+
+<section class="row g-3 my-4" aria-label="Performance charts">
+    <div class="col-12 col-lg-5">
+        <div class="card chart-card h-100">
+            <div class="card-body">
+                <h2 class="h5">Risk distribution</h2>
+                <div class="chart-container chart-container-doughnut">
+                    <canvas id="risk-chart" role="img" aria-label="Doughnut chart of student risk counts"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-7">
+        <div class="card chart-card h-100">
+            <div class="card-body">
+                <h2 class="h5">Average percentage by subject</h2>
+                <div class="chart-container">
+                    <canvas id="subject-chart" role="img" aria-label="Bar chart of average percentage by subject"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="my-4" aria-labelledby="subjects-heading">
+    <h2 id="subjects-heading" class="section-heading">Subject summary</h2>
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th scope="col">Subject</th>
+                    <th scope="col">Student count</th>
+                    <th scope="col">Average percentage</th>
+                    <th scope="col">Pass rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for subject in subject_summary %}
+                <tr>
+                    <td>{{ subject.subject }}</td>
+                    <td>{{ subject.student_count }}</td>
+                    <td>{{ "%.1f"|format(subject.average_percentage) }}%</td>
+                    <td>{{ "%.1f"|format(subject.pass_rate) }}%</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-muted">No subject data available.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="my-4" aria-labelledby="students-heading">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+        <div>
+            <h2 id="students-heading" class="section-heading mb-1">Student performance</h2>
+            <p class="text-muted mb-0" id="student-result-count" aria-live="polite">
+                Showing {{ students|length }} of {{ students|length }} students
+            </p>
+        </div>
+        <div class="student-filters">
+            <div>
+                <label class="form-label" for="student-search">Search ID or name</label>
+                <input class="form-control" type="search" id="student-search" placeholder="Search students">
+            </div>
+            <div>
+                <label class="form-label" for="subject-filter">Subject</label>
+                <select class="form-select" id="subject-filter">
+                    <option value="">All subjects</option>
+                    {% for subject in subject_summary %}
+                    <option value="{{ subject.subject }}">{{ subject.subject }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="risk-filter">Risk level</label>
+                <select class="form-select" id="risk-filter">
+                    <option value="">All risk levels</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive student-table-wrap">
+        <table class="table table-striped table-hover align-middle" id="student-table">
+            <thead>
+                <tr>
+                    <th scope="col">Student ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Subject</th>
+                    <th scope="col">Marks</th>
+                    <th scope="col">Percentage</th>
+                    <th scope="col">Attendance</th>
+                    <th scope="col">Risk level</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr data-record-index="{{ loop.index0 }}">
+                    <td>{{ student.student_id }}</td>
+                    <td>{{ student.name }}</td>
+                    <td>{{ student.subject }}</td>
+                    <td>{{ student.marks }} / {{ student.max_marks }}</td>
+                    <td>{{ "%.1f"|format(student.percentage) }}%</td>
+                    <td>{{ student.attendance }}%</td>
+                    <td>{{ student.risk_level }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-muted">No student records available.</td></tr>
+                {% endfor %}
+                <tr id="no-students-match" hidden>
+                    <td colspan="7" class="text-muted">No students match the selected filters.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<script id="dashboard-data" type="application/json">{{ {
+    "riskCounts": risk_counts,
+    "subjectSummary": subject_summary,
+    "students": students,
+    "sourceCsv": source_csv
+}|tojson }}</script>
+{% else %}
+<p class="text-muted">Upload a CSV file to see performance metrics and student risk levels.</p>
+<a class="btn btn-primary" href="{{ url_for('index') }}">Upload student data</a>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if metrics %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endif %}
+{% endblock %}

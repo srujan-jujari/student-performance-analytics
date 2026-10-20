@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Home | Student Performance Analytics{% endblock %}
+
+{% block content %}
+<section class="text-center py-5">
+    <h1>Student Performance Analytics</h1>
+    <p class="lead">Upload a student performance CSV to view analytics and risk levels.</p>
+    <p>Use synthetic student data during development.</p>
+
+    {% if error %}
+    <div class="alert alert-danger text-start" role="alert">{{ error }}</div>
+    {% endif %}
+
+    <form
+        class="mx-auto text-start"
+        action="{{ url_for('upload') }}"
+        method="post"
+        enctype="multipart/form-data"
+        style="max-width: 32rem;"
+    >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="form-label" for="student-csv">Student performance CSV</label>
+        <input
+            class="form-control mb-3"
+            type="file"
+            id="student-csv"
+            name="file"
+            accept=".csv,text/csv"
+            required
+        >
+        <button class="btn btn-primary" type="submit">Upload and analyze</button>
+    </form>
+</section>
+{% endblock %}

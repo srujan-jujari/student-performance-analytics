@@ -1,0 +1,20 @@
+# Environment variables and credentials
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Testing and local tooling
+.pytest_cache/
+.coverage
+htmlcov/
+.vscode/
+
+# Local generated files
+*.log
