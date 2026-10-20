@@ -1,35 +1,108 @@
 {% extends "base.html" %}
 
-{% block title %}Home | Student Performance Analytics{% endblock %}
+{% block title %}Analyze student data | EDUMETRICS{% endblock %}
+{% block shell_class %}upload-shell{% endblock %}
 
 {% block content %}
-<section class="text-center py-5">
-    <h1>Student Performance Analytics</h1>
-    <p class="lead">Upload a student performance CSV to view analytics and risk levels.</p>
-    <p>Use synthetic student data during development.</p>
+<header class="landing-header">
+    <a class="brand-lockup" href="{{ url_for('index') }}" aria-label="EDUMETRICS home">
+        <span class="brand-mark" aria-hidden="true">E</span>
+        <span class="brand-copy">
+            <strong>EDUMETRICS</strong>
+            <small>Student Performance Analytics</small>
+        </span>
+    </a>
+    <a class="topbar-link" href="{{ url_for('dashboard') }}">Dashboard <span aria-hidden="true">↗</span></a>
+</header>
 
-    {% if error %}
-    <div class="alert alert-danger text-start" role="alert">{{ error }}</div>
-    {% endif %}
+<section class="upload-page">
+    <div class="upload-intro">
+        <span class="eyebrow"><span class="eyebrow-line"></span> A CLEARER VIEW OF STUDENT SUCCESS</span>
+        <h1>Turn Student Data Into <span>Actionable Insights</span></h1>
+        <p class="upload-lead">
+            Understand academic performance, spot attendance risks, and make
+            informed decisions with a focused analytics workspace.
+        </p>
+        <ul class="capability-list">
+            <li><span class="capability-icon" aria-hidden="true">↗</span><span><strong>Performance summaries</strong><small>Key outcomes, at a glance</small></span></li>
+            <li><span class="capability-icon" aria-hidden="true">▥</span><span><strong>Subject analysis</strong><small>Compare average scores by subject</small></span></li>
+            <li><span class="capability-icon" aria-hidden="true">◎</span><span><strong>Risk classification</strong><small>Surface attendance and score signals</small></span></li>
+        </ul>
+    </div>
 
-    <form
-        class="mx-auto text-start"
-        action="{{ url_for('upload') }}"
-        method="post"
-        enctype="multipart/form-data"
-        style="max-width: 32rem;"
-    >
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label class="form-label" for="student-csv">Student performance CSV</label>
-        <input
-            class="form-control mb-3"
-            type="file"
-            id="student-csv"
-            name="file"
-            accept=".csv,text/csv"
-            required
-        >
-        <button class="btn btn-primary" type="submit">Upload and analyze</button>
-    </form>
+    <section class="upload-panel" aria-labelledby="upload-heading">
+        <div class="upload-panel-heading">
+            <span class="upload-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M7 3.75h7l4 4v12.5H7a2 2 0 0 1-2-2v-12.5a2 2 0 0 1 2-2Z"/><path d="M14 4v4h4M8 12h8M8 16h8"/></svg>
+            </span>
+            <div>
+                <span class="eyebrow">GET STARTED</span>
+                <h2 id="upload-heading">Analyze a dataset</h2>
+            </div>
+        </div>
+
+        {% if error %}
+        <div class="notice notice-error" role="alert"><span aria-hidden="true">!</span><p>{{ error }}</p></div>
+        {% endif %}
+
+        <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" id="upload-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="form-label" for="student-csv">Student performance CSV</label>
+            <div class="file-drop-area" id="file-drop-area">
+                <span class="drop-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v5h14v-5"/></svg>
+                </span>
+                <strong>Drop your CSV here, or <label class="browse-link" for="student-csv">browse files</label></strong>
+                <span class="file-name" id="selected-file-name">CSV file · up to 5 MB</span>
+                <input class="form-control file-input" type="file" id="student-csv" name="file" accept=".csv,text/csv" aria-describedby="upload-help" required>
+            </div>
+            <p id="upload-help" class="form-hint">Required columns: student_id, name, subject, marks, max_marks, attendance</p>
+            <button class="btn btn-primary upload-submit" type="submit">
+                <span class="button-label">Analyze Dataset</span>
+                <span class="button-loading" hidden>Analyzing dataset…</span>
+                <span class="button-arrow" aria-hidden="true">→</span>
+            </button>
+        </form>
+        <p class="privacy-note"><span aria-hidden="true">⌑</span> Processed in memory. Use synthetic records for demonstrations.</p>
+    </section>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (() => {
+        const form = document.getElementById("upload-form");
+        const input = document.getElementById("student-csv");
+        const fileName = document.getElementById("selected-file-name");
+        const dropArea = document.getElementById("file-drop-area");
+        if (!form || !input || !fileName || !dropArea) return;
+
+        input.addEventListener("change", () => {
+            fileName.textContent = input.files.length ? input.files[0].name : "CSV file · up to 5 MB";
+        });
+        ["dragenter", "dragover"].forEach((eventName) => {
+            dropArea.addEventListener(eventName, (event) => {
+                event.preventDefault();
+                dropArea.classList.add("is-dragging");
+            });
+        });
+        ["dragleave", "drop"].forEach((eventName) => {
+            dropArea.addEventListener(eventName, (event) => {
+                event.preventDefault();
+                dropArea.classList.remove("is-dragging");
+            });
+        });
+        dropArea.addEventListener("drop", (event) => {
+            if (!event.dataTransfer.files.length) return;
+            input.files = event.dataTransfer.files;
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+        form.addEventListener("submit", () => {
+            const button = form.querySelector("button[type='submit']");
+            button.disabled = true;
+            button.querySelector(".button-label").hidden = true;
+            button.querySelector(".button-loading").hidden = false;
+        });
+    })();
+</script>
 {% endblock %}

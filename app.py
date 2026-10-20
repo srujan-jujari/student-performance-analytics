@@ -7,7 +7,7 @@ from io import BytesIO
 
 import pandas as pd
 from dotenv import load_dotenv
-from flask import Flask, abort, render_template, request, session
+from flask import Flask, abort, jsonify, render_template, request, session
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from analytics import (
@@ -66,6 +66,11 @@ def protect_state_changing_requests():
             or not hmac.compare_digest(expected_token, submitted_token)
         ):
             abort(400)
+
+
+def _expects_json_response() -> bool:
+    """Check whether the caller requested an asynchronous JSON response."""
+    return request.accept_mimetypes.best == "application/json"
 
 
 def _render_upload_error(message: str, status_code: int = 400):
@@ -133,6 +138,7 @@ def _render_dashboard(
     message: str | None = None,
     message_type: str = "success",
     completed_action: str | None = None,
+    storage_action: str | None = None,
 ):
     """Render analyzed data and an optional storage result."""
     return render_template(
@@ -142,11 +148,14 @@ def _render_dashboard(
         storage_message=message,
         storage_message_type=message_type,
         completed_action=completed_action,
+        storage_action=storage_action,
     )
 
 
 def _render_storage_error(message: str, status_code: int = 400):
     """Render a safe error when submitted dashboard data cannot be validated."""
+    if _expects_json_response():
+        return jsonify(success=False, message=message), status_code
     return render_template(
         "error.html",
         message=message,
@@ -158,6 +167,27 @@ def _cloudinary_failure_message(error: Exception) -> str:
     if isinstance(error, CloudStorageConfigurationError):
         return f"Cloudinary storage is not configured. {error}"
     return "Cloudinary could not store the file. Check the server configuration and try again."
+
+
+def _storage_result(
+    student_data: pd.DataFrame,
+    source_csv: str,
+    action: str,
+    message: str,
+    success: bool,
+    status_code: int,
+):
+    """Return an AJAX result or render the dashboard for ordinary form clients."""
+    if _expects_json_response():
+        return jsonify(success=success, message=message, action=action), status_code
+    return _render_dashboard(
+        student_data,
+        source_csv,
+        message=message,
+        message_type="success" if success else "danger",
+        completed_action=action if success else None,
+        storage_action=action,
+    ), status_code
 
 
 @app.get("/")
@@ -197,20 +227,24 @@ def store_source_csv():
         return _render_storage_error(error)
 
     try:
-        upload_to_cloudinary(BytesIO(csv_content))
+        upload_to_cloudinary(BytesIO(csv_content), asset_category="source")
     except (CloudStorageConfigurationError, CloudStorageUploadError) as error:
-        return _render_dashboard(
+        return _storage_result(
             student_data,
             csv_content.decode("utf-8"),
+            "source",
             message=_cloudinary_failure_message(error),
-            message_type="danger",
+            success=False,
+            status_code=503 if isinstance(error, CloudStorageConfigurationError) else 502,
         )
 
-    return _render_dashboard(
+    return _storage_result(
         student_data,
         csv_content.decode("utf-8"),
-        message="The validated source CSV was stored as an authenticated Cloudinary asset.",
-        completed_action="source",
+        "source",
+        message="Source CSV uploaded successfully.",
+        success=True,
+        status_code=200,
     )
 
 
@@ -225,20 +259,24 @@ def store_analyzed_report():
     analyzed_students = classify_risk(student_data)
     report_csv = analyzed_students.to_csv(index=False).encode("utf-8")
     try:
-        upload_to_cloudinary(BytesIO(report_csv))
+        upload_to_cloudinary(BytesIO(report_csv), asset_category="report")
     except (CloudStorageConfigurationError, CloudStorageUploadError) as error:
-        return _render_dashboard(
+        return _storage_result(
             student_data,
             source_csv,
+            "report",
             message=_cloudinary_failure_message(error),
-            message_type="danger",
+            success=False,
+            status_code=503 if isinstance(error, CloudStorageConfigurationError) else 502,
         )
 
-    return _render_dashboard(
+    return _storage_result(
         student_data,
         source_csv,
-        message="The analyzed CSV report was stored as an authenticated Cloudinary asset.",
-        completed_action="report",
+        "report",
+        message="Analytics report uploaded successfully.",
+        success=True,
+        status_code=200,
     )
 
 
@@ -251,6 +289,11 @@ def dashboard():
 @app.errorhandler(400)
 def bad_request(_error):
     """Show a generic message for invalid requests, including failed CSRF checks."""
+    if _expects_json_response():
+        return jsonify(
+            success=False,
+            message="The request was invalid or the form expired. Refresh the page and try again.",
+        ), 400
     return (
         render_template(
             "error.html",

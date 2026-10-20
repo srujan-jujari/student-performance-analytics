@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Page not found | Student Performance Analytics{% endblock %}
+{% block title %}Request unavailable | EDUMETRICS{% endblock %}
 
 {% block content %}
-<section class="text-center py-5">
-    <h1>Page not found</h1>
+<section class="error-page">
+    <span class="error-mark" aria-hidden="true">!</span>
+    <span class="eyebrow">REQUEST UNAVAILABLE</span>
+    <h1>Request could not be completed</h1>
     <p>{{ message }}</p>
     <a class="btn btn-primary" href="{{ url_for('index') }}">Return home</a>
 </section>

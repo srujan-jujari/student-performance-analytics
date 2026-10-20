@@ -2,7 +2,8 @@
 
 import os
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, Literal
+from uuid import uuid4
 
 import cloudinary
 from cloudinary import uploader
@@ -50,18 +51,26 @@ def _configure_cloudinary() -> None:
     )
 
 
-def upload_to_cloudinary(file: BinaryIO | bytes | bytearray) -> dict[str, str | None]:
+def upload_to_cloudinary(
+    file: BinaryIO | bytes | bytearray,
+    *,
+    asset_category: Literal["source", "report"],
+) -> dict[str, str | None]:
     """Upload an in-memory CSV or report as an authenticated raw Cloudinary asset.
 
+    Each upload receives a unique, category-specific public ID. Overwriting is
+    disabled so repeated uploads do not replace an earlier asset.
     The returned mapping contains only the public ID, resource type, and format.
     It deliberately excludes delivery URLs and credential data. Authenticated
     Cloudinary assets require signed delivery for access.
 
     Args:
         file: Bytes or a binary file-like stream. Local file paths are not accepted.
+        asset_category: Whether this is an original source CSV or generated report.
 
     Raises:
         TypeError: If ``file`` is not bytes or a readable file-like object.
+        ValueError: If ``asset_category`` is not ``"source"`` or ``"report"``.
         CloudStorageConfigurationError: If Cloudinary credentials are missing.
         CloudStorageUploadError: If upload fails or Cloudinary returns incomplete
             or unexpected metadata.
@@ -70,14 +79,22 @@ def upload_to_cloudinary(file: BinaryIO | bytes | bytearray) -> dict[str, str | 
         getattr(file, "read", None)
     ):
         raise TypeError("file must be bytes or a readable in-memory file object.")
+    if asset_category not in {"source", "report"}:
+        raise ValueError("asset_category must be 'source' or 'report'.")
 
     _configure_cloudinary()
+    public_id = (
+        "student-performance-analytics/"
+        f"student_performance_{asset_category}_{uuid4().hex}.csv"
+    )
 
     try:
         result = uploader.upload(
             bytes(file) if isinstance(file, bytearray) else file,
+            public_id=public_id,
             resource_type="raw",
             type="authenticated",
+            overwrite=False,
         )
     except CloudinaryError as error:
         raise CloudStorageUploadError(

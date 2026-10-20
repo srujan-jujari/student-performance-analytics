@@ -8,11 +8,15 @@
 
     const dashboardData = JSON.parse(dataElement.textContent);
     const riskLabels = ["High", "Medium", "Low"];
-    const riskColors = ["#dc3545", "#ffc107", "#198754"];
+    const riskColors = ["#fb7185", "#fbbf24", "#34d399"];
     const riskCanvas = document.getElementById("risk-chart");
     const subjectCanvas = document.getElementById("subject-chart");
 
     if (window.Chart && riskCanvas) {
+        const existingChart = Chart.getChart(riskCanvas);
+        if (existingChart) {
+            existingChart.destroy();
+        }
         new Chart(riskCanvas, {
             type: "doughnut",
             data: {
@@ -20,20 +24,37 @@
                 datasets: [{
                     data: riskLabels.map((label) => dashboardData.riskCounts[label] || 0),
                     backgroundColor: riskColors,
-                    borderWidth: 0
+                    borderWidth: 2,
+                    borderColor: "#222222",
+                    hoverOffset: 5
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: "bottom" }
+                    legend: {
+                        position: "bottom",
+                        labels: { color: "#a3a3a3", padding: 18, usePointStyle: true }
+                    },
+                    tooltip: {
+                        backgroundColor: "#171717",
+                        borderColor: "#484848",
+                        borderWidth: 1,
+                        titleColor: "#fafafa",
+                        bodyColor: "#d4d4d4",
+                        padding: 11
+                    }
                 }
             }
         });
     }
 
     if (window.Chart && subjectCanvas) {
+        const existingChart = Chart.getChart(subjectCanvas);
+        if (existingChart) {
+            existingChart.destroy();
+        }
         const subjects = dashboardData.subjectSummary || [];
         new Chart(subjectCanvas, {
             type: "bar",
@@ -42,8 +63,12 @@
                 datasets: [{
                     label: "Average percentage",
                     data: subjects.map((subject) => subject.average_percentage),
-                    backgroundColor: "#0d6efd",
-                    borderRadius: 5
+                    backgroundColor: "rgba(245, 158, 11, 0.82)",
+                    hoverBackgroundColor: "#f97316",
+                    borderColor: "#f59e0b",
+                    borderWidth: 1,
+                    borderRadius: 5,
+                    maxBarThickness: 42
                 }]
             },
             options: {
@@ -53,14 +78,34 @@
                     y: {
                         beginAtZero: true,
                         max: 100,
-                        title: { display: true, text: "Average percentage" }
+                        title: {
+                            display: true,
+                            text: "Average percentage",
+                            color: "#a3a3a3",
+                            font: { size: 10 }
+                        },
+                        ticks: { color: "#a3a3a3", font: { size: 9 } },
+                        grid: { color: "rgba(255, 255, 255, 0.07)" },
+                        border: { color: "#383838" }
                     },
                     x: {
-                        ticks: { autoSkip: false }
+                        ticks: { autoSkip: false, color: "#a3a3a3", font: { size: 9 } },
+                        grid: { display: false },
+                        border: { color: "#383838" }
                     }
                 },
                 plugins: {
-                    legend: { display: false }
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: "#171717",
+                        borderColor: "#484848",
+                        borderWidth: 1,
+                        titleColor: "#fafafa",
+                        bodyColor: "#d4d4d4",
+                        callbacks: {
+                            label: (context) => ` ${context.parsed.y.toFixed(1)}%`
+                        }
+                    }
                 }
             }
         });
@@ -115,23 +160,54 @@
     const sourceCsv = dashboardData.sourceCsv;
 
     storageForms.forEach((form) => {
-        form.addEventListener("submit", (event) => {
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
             if (form.dataset.submitting === "true") {
-                event.preventDefault();
                 return;
             }
 
-            const sourceInput = document.createElement("input");
-            sourceInput.type = "hidden";
-            sourceInput.name = "source_csv";
-            sourceInput.value = sourceCsv;
-            form.appendChild(sourceInput);
-
             form.dataset.submitting = "true";
-            const submitButton = event.submitter;
-            if (submitButton) {
-                submitButton.disabled = true;
-                submitButton.textContent = "Storing...";
+            const action = form.dataset.storageAction;
+            const status = document.getElementById(`${action}-storage-status`);
+            const submitButton = form.querySelector("button[type='submit']");
+            const label = submitButton.querySelector(".button-label");
+            const loading = submitButton.querySelector(".button-loading");
+            const formData = new FormData(form);
+            formData.set("source_csv", sourceCsv);
+            submitButton.disabled = true;
+            label.hidden = true;
+            loading.hidden = false;
+            status.textContent = "Sending your file securely…";
+            status.className = "storage-status storage-status-pending";
+
+            try {
+                const response = await fetch(form.action, {
+                    method: "POST",
+                    body: formData,
+                    credentials: "same-origin",
+                    headers: { Accept: "application/json" }
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || "Upload failed. Please try again.");
+                }
+
+                status.textContent = result.message;
+                status.className = "storage-status storage-status-success";
+                label.textContent = "Uploaded successfully";
+            } catch (error) {
+                status.textContent = error instanceof Error
+                    ? error.message
+                    : "Upload could not be completed. Check your connection and try again.";
+                status.className = "storage-status storage-status-error";
+                submitButton.disabled = false;
+                label.textContent = action === "source"
+                    ? "Upload Source CSV"
+                    : "Upload Analytics Report";
+            } finally {
+                form.dataset.submitting = "false";
+                label.hidden = false;
+                loading.hidden = true;
             }
         });
     });

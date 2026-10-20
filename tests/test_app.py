@@ -51,6 +51,7 @@ def post_storage_action(client, endpoint, csv_content=CSV_CONTENT):
             "source_csv": csv_content,
         },
         content_type="multipart/form-data",
+        headers={"Accept": "application/json"},
     )
 
 
@@ -58,19 +59,34 @@ def test_home_page_contains_csv_upload_form(client):
     response = client.get("/")
 
     assert response.status_code == 200
+    assert b"style.css?v=20261020-2" in response.data
+    assert b"bootstrap.min.css" not in response.data
+    assert b"navbar-dark bg-primary" not in response.data
     assert b'enctype="multipart/form-data"' in response.data
     assert b'name="file"' in response.data
+
+
+def test_home_page_uses_dark_upload_design_and_selected_file_feedback(client):
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert b"Turn Student Data Into" in response.data
+    assert b"Actionable Insights" in response.data
+    assert b'id="file-drop-area"' in response.data
+    assert b"id=\"selected-file-name\"" in response.data
+    assert b"CSV file" in response.data
+    assert b"up to 5 MB" in response.data
 
 
 def test_valid_upload_renders_dashboard_with_analytics(client):
     response = upload_csv(client, CSV_CONTENT.encode())
 
     assert response.status_code == 200
-    assert b"Total records" in response.data
+    assert b"Total Records" in response.data
     assert b"3" in response.data
-    assert b"Average percentage" in response.data
-    assert b"Average attendance" in response.data
-    assert b"Pass rate" in response.data
+    assert b"Average Percentage" in response.data
+    assert b"Average Attendance" in response.data
+    assert b"Pass Rate" in response.data
     assert b"High: 1" in response.data
     assert b"Medium: 1" in response.data
     assert b"Low: 1" in response.data
@@ -85,6 +101,13 @@ def test_valid_upload_renders_dashboard_with_analytics(client):
     assert b'id="risk-filter"' in response.data
     assert b"Download filtered records CSV" in response.data
     assert b"dashboard.js" in response.data
+    assert b"Academic Intelligence" in response.data
+    assert b"EDUMETRICS" in response.data
+    assert b"app-sidebar" in response.data
+    assert b"style.css?v=20261020-2" in response.data
+    assert b"bootstrap.min.css" not in response.data
+    assert b"navbar-dark bg-primary" not in response.data
+    assert b"dashboard.js?v=20261020-2" in response.data
 
 
 def test_dashboard_escapes_uploaded_text_in_table_and_json(client):
@@ -104,9 +127,13 @@ def test_dashboard_shows_cloudinary_storage_actions(client):
     response = upload_csv(client, CSV_CONTENT.encode())
 
     assert response.status_code == 200
-    assert b"Store source CSV in Cloudinary" in response.data
-    assert b"Store analyzed report in Cloudinary" in response.data
+    assert b"Upload Source CSV" in response.data
+    assert b"Upload Analytics Report" in response.data
+    assert b"Original Source Dataset" in response.data
+    assert b"Generated Analytics Report" in response.data
     assert b'name="csrf_token"' in response.data
+    assert b'id="source-storage-status"' in response.data
+    assert b'id="report-storage-status"' in response.data
 
 
 def test_upload_reports_missing_file(client):
@@ -190,21 +217,17 @@ def test_upload_rejects_post_without_csrf_token(client):
 
 
 def test_store_source_csv_uploads_only_validated_csv(client, monkeypatch):
-    mock = Mock(
-        return_value={
-            "public_id": "private/source.csv",
-            "resource_type": "raw",
-            "format": "csv",
-        }
-    )
+    mock = Mock(return_value={"public_id": "private/source.csv"})
     monkeypatch.setattr(app_module, "upload_to_cloudinary", mock)
 
     response = post_storage_action(client, "/cloudinary/source")
 
     assert response.status_code == 200
-    assert b"validated source CSV was stored" in response.data
+    assert response.json["success"] is True
+    assert response.json["message"] == "Source CSV uploaded successfully."
     assert b"private/source.csv" not in response.data
     mock.assert_called_once()
+    assert mock.call_args.kwargs == {"asset_category": "source"}
     uploaded_bytes = mock.call_args.args[0].getvalue()
     assert uploaded_bytes == CSV_CONTENT.encode()
     uploaded_data = pd.read_csv(BytesIO(uploaded_bytes))
@@ -213,24 +236,40 @@ def test_store_source_csv_uploads_only_validated_csv(client, monkeypatch):
     assert "risk_level" not in uploaded_data.columns
 
 
+def test_form_fallback_keeps_dashboard_and_action_specific_success(client, monkeypatch):
+    mock = Mock(return_value={"public_id": "private/source.csv"})
+    monkeypatch.setattr(app_module, "upload_to_cloudinary", mock)
+    response = client.post(
+        "/cloudinary/source",
+        data={
+            "csrf_token": get_csrf_token(client),
+            "source_csv": CSV_CONTENT,
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert b"Student performance dashboard" in response.data
+    assert b"Source CSV uploaded successfully." in response.data
+    assert b"report-storage-status" in response.data
+    assert b"id=\"risk-chart\"" in response.data
+    assert b"Alex" in response.data
+
+
 def test_store_report_contains_percentage_and_risk_without_recalculating_in_route(
     client, monkeypatch
 ):
-    mock = Mock(
-        return_value={
-            "public_id": "private/report.csv",
-            "resource_type": "raw",
-            "format": "csv",
-        }
-    )
+    mock = Mock(return_value={"public_id": "private/report.csv"})
     monkeypatch.setattr(app_module, "upload_to_cloudinary", mock)
 
     response = post_storage_action(client, "/cloudinary/report")
 
     assert response.status_code == 200
-    assert b"analyzed CSV report was stored" in response.data
+    assert response.json["success"] is True
+    assert response.json["message"] == "Analytics report uploaded successfully."
     assert b"private/report.csv" not in response.data
     mock.assert_called_once()
+    assert mock.call_args.kwargs == {"asset_category": "report"}
     uploaded_bytes = mock.call_args.args[0].getvalue()
     report = pd.read_csv(BytesIO(uploaded_bytes))
     assert report["percentage"].tolist() == pytest.approx([90.0, 39.0, 45.0])
@@ -251,32 +290,42 @@ def test_storage_routes_validate_data_before_calling_cloudinary(
     )
 
     assert response.status_code == 400
-    assert b"cannot exceed" in response.data
+    assert response.json["success"] is False
+    assert "cannot exceed" in response.json["message"]
     mock.assert_not_called()
 
 
 @pytest.mark.parametrize(
-    "storage_error",
+    ("storage_error", "expected_status", "expected_message"),
     [
-        CloudStorageConfigurationError(
-            "Missing required Cloudinary environment variables: CLOUDINARY_API_SECRET."
+        (
+            CloudStorageConfigurationError(
+                "Missing required Cloudinary environment variables: CLOUDINARY_API_SECRET."
+            ),
+            503,
+            "Cloudinary storage is not configured",
         ),
-        CloudStorageUploadError("Cloudinary upload failed. Check the server configuration and retry."),
+        (
+            CloudStorageUploadError(
+                "Cloudinary upload failed. Check the server configuration and retry."
+            ),
+            502,
+            "Cloudinary could not store the file",
+        ),
     ],
 )
 @pytest.mark.parametrize("endpoint", ["/cloudinary/source", "/cloudinary/report"])
 def test_storage_route_shows_safe_failure_message(
-    client, monkeypatch, storage_error, endpoint
+    client, monkeypatch, storage_error, expected_status, expected_message, endpoint
 ):
     mock = Mock(side_effect=storage_error)
     monkeypatch.setattr(app_module, "upload_to_cloudinary", mock)
 
     response = post_storage_action(client, endpoint)
 
-    assert response.status_code == 200
-    assert b"Cloudinary storage is not configured" in response.data or (
-        b"Cloudinary could not store the file" in response.data
-    )
+    assert response.status_code == expected_status
+    assert response.json["success"] is False
+    assert expected_message in response.json["message"]
     assert b"test-api-secret" not in response.data
 
 
@@ -288,7 +337,9 @@ def test_storage_routes_require_csrf_token(client, monkeypatch):
         "/cloudinary/source",
         data={"source_csv": CSV_CONTENT},
         content_type="multipart/form-data",
+        headers={"Accept": "application/json"},
     )
 
     assert response.status_code == 400
+    assert response.json["success"] is False
     mock.assert_not_called()

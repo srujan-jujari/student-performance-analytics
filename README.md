@@ -4,8 +4,8 @@ A starter project for a cloud-based student performance analytics and risk
 detection application built with Flask, Pandas, NumPy, Bootstrap, Chart.js,
 Cloudinary, and Render.
 
-This repository is an initial scaffold, not a complete analytics or risk
-detection system. The included CSV contains synthetic example data only.
+This project provides a working CSV analytics flow and a demonstration risk
+classification model. Use synthetic student records for development and demos.
 
 ## Run locally
 
@@ -41,7 +41,7 @@ py -m pytest
 - `static/css/style.css` — project-specific styles.
 - `static/js/dashboard.js` — dashboard charts, filters, downloads, and storage form submission.
 - `tests/test_analytics.py` — starter tests for analytics helpers.
-- `sample_data/student_performance.csv` — synthetic sample data.
+- `tests/` — analytics, upload-route, and mocked Cloudinary tests.
 
 ## Data and deployment notes
 
@@ -54,9 +54,13 @@ py -m pytest
   project does not implement authenticated user accounts or multi-user
   authorization.
 - Cloudinary storage buttons revalidate the submitted CSV before storage. Source
-  CSVs and analyzed reports are uploaded as authenticated raw assets; the app
-  does not return public URLs. The dashboard keeps its current data in the page
-  only and does not persist it on Render's local filesystem or in the session.
+  CSVs and analyzed reports are uploaded as authenticated raw assets with unique
+  IDs under `student-performance-analytics/`; source/report names remain
+  recognizable. The app does not return public URLs. The dashboard keeps its
+  current data in the page only and does not persist it on Render's local
+  filesystem or in the session.
+- Storage forms use asynchronous requests so saving either asset preserves the
+  current dashboard and the separate status for each action.
 - Do not rely on Render's local filesystem for permanent uploads. The planned
   upload flow sends files to Cloudinary and avoids retaining them on the
   application disk.
