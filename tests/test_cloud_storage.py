@@ -1,215 +1,142 @@
 from io import BytesIO
-from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-from cloudinary.exceptions import Error as CloudinaryError
+from botocore.exceptions import ClientError
 
 import cloud_storage
 
 
 @pytest.fixture
-def mock_cloudinary(monkeypatch):
+def mock_s3(monkeypatch):
     monkeypatch.setattr(cloud_storage, "load_dotenv", Mock())
-    monkeypatch.setenv("CLOUDINARY_CLOUD_NAME", "test-cloud")
-    monkeypatch.setenv("CLOUDINARY_API_KEY", "test-api-key")
-    monkeypatch.setenv("CLOUDINARY_API_SECRET", "test-api-secret")
-    monkeypatch.setattr(
-        cloud_storage,
-        "uuid4",
-        lambda: SimpleNamespace(hex="fixed-unique-id"),
-    )
+    monkeypatch.setenv("AWS_REGION", "ap-southeast-2")
+    monkeypatch.setenv("AWS_S3_BUCKET", "student-performance-analytics-cc")
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test-access-key")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test-secret-key")
+    monkeypatch.setattr(cloud_storage, "uuid4", Mock())
+    cloud_storage.uuid4.return_value.hex = "fixed-unique-id"
 
-    config = Mock()
-    upload = Mock()
-
-    def upload_result(_file, **options):
-        return {
-            "public_id": options["public_id"],
-            "resource_type": "raw",
-            "format": "csv",
-            "secure_url": "https://example.invalid/should-not-be-returned",
-            "api_key": "should-not-be-returned",
-        }
-
-    upload.side_effect = upload_result
-    monkeypatch.setattr(cloud_storage.cloudinary, "config", config)
-    monkeypatch.setattr(cloud_storage.uploader, "upload", upload)
-    return config, upload
+    client = Mock()
+    monkeypatch.setattr(cloud_storage.boto3, "client", Mock(return_value=client))
+    monkeypatch.setattr(cloud_storage, "_create_s3_client", Mock(
+        return_value=(client, "student-performance-analytics-cc")
+    ))
+    return client
 
 
 @pytest.mark.parametrize(
-    ("asset_category", "expected_public_id"),
+    ("asset_category", "expected_key"),
     [
-        (
-            "source",
-            "student-performance-analytics/student_performance_source_fixed-unique-id.csv",
-        ),
-        (
-            "report",
-            "student-performance-analytics/student_performance_report_fixed-unique-id.csv",
-        ),
+        ("source", "student-performance-analytics/source/source_fixed-unique-id.csv"),
+        ("report", "student-performance-analytics/report/report_fixed-unique-id.csv"),
     ],
 )
-def test_uploads_as_named_authenticated_raw_asset(
-    mock_cloudinary, asset_category, expected_public_id
-):
-    config, upload = mock_cloudinary
+def test_uploads_csv_to_private_s3_bucket(mock_s3, asset_category, expected_key):
     csv_stream = BytesIO(b"synthetic,test,data\n")
 
-    metadata = cloud_storage.upload_to_cloudinary(
-        csv_stream,
-        asset_category=asset_category,
-    )
+    metadata = cloud_storage.upload_to_s3(csv_stream, asset_category=asset_category)
 
-    cloud_storage.load_dotenv.assert_called_once_with(
-        dotenv_path=cloud_storage.DOTENV_PATH,
-        override=False,
-    )
-    config.assert_called_once_with(
-        cloud_name="test-cloud",
-        api_key="test-api-key",
-        api_secret="test-api-secret",
-        secure=True,
-    )
-    upload.assert_called_once_with(
+    mock_s3.upload_fileobj.assert_called_once_with(
         csv_stream,
-        public_id=expected_public_id,
-        resource_type="raw",
-        type="authenticated",
-        overwrite=False,
+        "student-performance-analytics-cc",
+        expected_key,
+        ExtraArgs={
+            "ContentType": "text/csv; charset=utf-8",
+            "ServerSideEncryption": "AES256",
+        },
     )
     assert metadata == {
-        "public_id": expected_public_id,
-        "resource_type": "raw",
-        "format": "csv",
+        "bucket": "student-performance-analytics-cc",
+        "key": expected_key,
+        "content_type": "text/csv; charset=utf-8",
     }
-    assert "secure_url" not in metadata
-    assert "api_key" not in metadata
-    assert "api_secret" not in metadata
+    assert "url" not in metadata
+    assert "secret" not in metadata
 
 
-def test_each_upload_receives_a_unique_public_id(mock_cloudinary, monkeypatch):
-    _, upload = mock_cloudinary
-    monkeypatch.setattr(
-        cloud_storage,
-        "uuid4",
-        Mock(
-            side_effect=[
-                SimpleNamespace(hex="first-unique-id"),
-                SimpleNamespace(hex="second-unique-id"),
-            ]
-        ),
-    )
+def test_each_upload_receives_unique_key(mock_s3, monkeypatch):
+    ids = iter(["first-id", "second-id"])
+    monkeypatch.setattr(cloud_storage, "uuid4", lambda: type("ID", (), {"hex": next(ids)})())
 
-    first = cloud_storage.upload_to_cloudinary(b"first", asset_category="source")
-    second = cloud_storage.upload_to_cloudinary(b"second", asset_category="source")
+    first = cloud_storage.upload_to_s3(b"first", asset_category="source")
+    second = cloud_storage.upload_to_s3(b"second", asset_category="source")
 
-    assert first["public_id"] != second["public_id"]
-    assert upload.call_args_list[0].kwargs["overwrite"] is False
-    assert upload.call_args_list[1].kwargs["overwrite"] is False
+    assert first["key"] != second["key"]
+    assert mock_s3.upload_fileobj.call_count == 2
 
 
-def test_uploads_in_memory_bytes(mock_cloudinary):
-    _, upload = mock_cloudinary
-
-    cloud_storage.upload_to_cloudinary(
-        b"synthetic report",
-        asset_category="report",
-    )
-
-    upload.assert_called_once_with(
-        b"synthetic report",
-        public_id=(
-            "student-performance-analytics/"
-            "student_performance_report_fixed-unique-id.csv"
-        ),
-        resource_type="raw",
-        type="authenticated",
-        overwrite=False,
-    )
+def test_uploads_bytes(mock_s3):
+    content = b"synthetic report"
+    cloud_storage.upload_to_s3(content, asset_category="report")
+    args, kwargs = mock_s3.upload_fileobj.call_args
+    assert isinstance(args[0], BytesIO)
+    assert args[0].readable()
+    assert args[0].read() == content
+    assert args[1] == "student-performance-analytics-cc"
+    assert args[2].startswith("student-performance-analytics/report/")
+    assert kwargs["ExtraArgs"]["ServerSideEncryption"] == "AES256"
 
 
-@pytest.mark.parametrize(
-    ("missing_variable", "test_value"),
-    [
-        ("CLOUDINARY_CLOUD_NAME", "test-cloud"),
-        ("CLOUDINARY_API_KEY", "test-api-key"),
-        ("CLOUDINARY_API_SECRET", "test-api-secret"),
-    ],
-)
-def test_missing_credentials_raise_clear_error_without_upload(
-    mock_cloudinary, monkeypatch, missing_variable, test_value
-):
-    config, upload = mock_cloudinary
-    monkeypatch.delenv(missing_variable)
-
-    with pytest.raises(
-        cloud_storage.CloudStorageConfigurationError,
-        match=missing_variable,
-    ) as error:
-        cloud_storage.upload_to_cloudinary(
-            b"synthetic data",
-            asset_category="source",
-        )
-
-    assert test_value not in str(error.value)
-    config.assert_not_called()
-    upload.assert_not_called()
-
-
-def test_upload_failure_raises_safe_error(mock_cloudinary):
-    _, upload = mock_cloudinary
-    upload.side_effect = CloudinaryError("mock upload failure")
-
-    with pytest.raises(
-        cloud_storage.CloudStorageUploadError,
-        match="Cloudinary upload failed",
-    ) as error:
-        cloud_storage.upload_to_cloudinary(
-            b"synthetic data",
-            asset_category="source",
-        )
-
-    assert isinstance(error.value.__cause__, CloudinaryError)
-
-
-def test_rejects_unexpected_cloudinary_metadata(mock_cloudinary):
-    _, upload = mock_cloudinary
-    upload.side_effect = None
-    upload.return_value = {"public_id": "unexpected", "resource_type": "image"}
-
-    with pytest.raises(
-        cloud_storage.CloudStorageUploadError,
-        match="incomplete or unexpected upload metadata",
-    ):
-        cloud_storage.upload_to_cloudinary(
-            b"synthetic data",
-            asset_category="source",
-        )
-
-
-def test_rejects_local_file_paths(mock_cloudinary):
-    config, upload = mock_cloudinary
-
-    with pytest.raises(TypeError, match="in-memory file object"):
-        cloud_storage.upload_to_cloudinary(
-            "C:\\private\\student-data.csv",
-            asset_category="source",
-        )
-
-    config.assert_not_called()
-    upload.assert_not_called()
-
-
-def test_rejects_unknown_asset_category_before_upload(mock_cloudinary):
-    config, upload = mock_cloudinary
-
+@pytest.mark.parametrize("asset_category", ["unknown", "", None])
+def test_rejects_unknown_category_before_s3_client(mock_s3, asset_category):
     with pytest.raises(ValueError, match="asset_category"):
-        cloud_storage.upload_to_cloudinary(
-            b"synthetic data",
-            asset_category="other",
-        )
+        cloud_storage.upload_to_s3(b"synthetic data", asset_category=asset_category)
 
-    config.assert_not_called()
-    upload.assert_not_called()
+
+def test_rejects_file_path_strings_before_s3_client(mock_s3):
+    with pytest.raises(TypeError, match="in-memory file object"):
+        cloud_storage.upload_to_s3(r"C:\private\student-data.csv", asset_category="source")
+
+
+def test_upload_failure_raises_safe_error(mock_s3):
+    mock_s3.upload_fileobj.side_effect = ClientError(
+        {"Error": {"Code": "AccessDenied", "Message": "mock secret details"}},
+        "PutObject",
+    )
+
+    with pytest.raises(
+        cloud_storage.CloudStorageUploadError,
+        match="Amazon S3 could not store the file",
+    ) as error:
+        cloud_storage.upload_to_s3(b"synthetic data", asset_category="source")
+
+    assert "mock secret details" not in str(error.value)
+    assert isinstance(error.value.__cause__, ClientError)
+
+
+def test_missing_region_fails_before_client_creation(monkeypatch):
+    monkeypatch.setattr(cloud_storage, "load_dotenv", Mock())
+    monkeypatch.delenv("AWS_REGION", raising=False)
+    monkeypatch.setenv("AWS_S3_BUCKET", "student-performance-analytics-cc")
+    create_client = Mock()
+    monkeypatch.setattr(cloud_storage.boto3, "client", create_client)
+
+    with pytest.raises(cloud_storage.CloudStorageConfigurationError, match="AWS_REGION"):
+        cloud_storage._create_s3_client()
+
+    create_client.assert_not_called()
+
+
+def test_missing_bucket_fails_before_client_creation(monkeypatch):
+    monkeypatch.setattr(cloud_storage, "load_dotenv", Mock())
+    monkeypatch.setenv("AWS_REGION", "ap-southeast-2")
+    monkeypatch.delenv("AWS_S3_BUCKET", raising=False)
+    create_client = Mock()
+    monkeypatch.setattr(cloud_storage.boto3, "client", create_client)
+
+    with pytest.raises(cloud_storage.CloudStorageConfigurationError, match="AWS_S3_BUCKET"):
+        cloud_storage._create_s3_client()
+
+    create_client.assert_not_called()
+
+
+def test_only_one_aws_credential_is_rejected(monkeypatch):
+    monkeypatch.setattr(cloud_storage, "load_dotenv", Mock())
+    monkeypatch.setenv("AWS_REGION", "ap-southeast-2")
+    monkeypatch.setenv("AWS_S3_BUCKET", "student-performance-analytics-cc")
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test-access-key")
+    monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
+
+    with pytest.raises(cloud_storage.CloudStorageConfigurationError, match="Set both"):
+        cloud_storage._create_s3_client()

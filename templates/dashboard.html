@@ -162,7 +162,7 @@
 
     <section class="storage-section" id="cloud-storage" aria-labelledby="storage-heading">
         <div class="panel-heading storage-heading">
-            <div><span class="eyebrow">CLOUDINARY</span><h2 id="storage-heading">Secure file storage</h2><p class="panel-subtitle">Authenticated assets only. No public delivery links are created.</p></div>
+            <div><span class="eyebrow">aws s3</span><h2 id="storage-heading">Secure file storage</h2><p class="panel-subtitle">Authenticated assets only. No public delivery links are created.</p></div>
             <span class="storage-lock" aria-hidden="true">⌑</span>
         </div>
         <div class="storage-grid">
@@ -172,7 +172,7 @@
                 </div>
                 <span class="storage-tag">ORIGINAL DATASET</span>
                 <h3>Original Source Dataset</h3>
-                <p>Store the original uploaded CSV securely in Cloudinary.</p>
+                <p>Store the original uploaded CSV securely in Amazon S3.</p>
                 <form action="{{ url_for('store_source_csv') }}" method="post" class="cloud-storage-form" data-storage-action="source">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn btn-primary storage-submit" type="submit">

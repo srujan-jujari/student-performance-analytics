@@ -19,7 +19,7 @@ from analytics import (
 from cloud_storage import (
     CloudStorageConfigurationError,
     CloudStorageUploadError,
-    upload_to_cloudinary,
+    upload_to_s3,
 )
 
 load_dotenv(override=False)
@@ -162,11 +162,11 @@ def _render_storage_error(message: str, status_code: int = 400):
     ), status_code
 
 
-def _cloudinary_failure_message(error: Exception) -> str:
-    """Return a safe storage error that does not reveal credentials or URLs."""
+def _s3_failure_message(error: Exception) -> str:
+    """Return a safe storage error that does not reveal credentials or object details."""
     if isinstance(error, CloudStorageConfigurationError):
-        return f"Cloudinary storage is not configured. {error}"
-    return "Cloudinary could not store the file. Check the server configuration and try again."
+        return f"Amazon S3 storage is not configured. {error}"
+    return "Amazon S3 could not store the file. Check the server configuration and try again."
 
 
 def _storage_result(
@@ -219,21 +219,21 @@ def upload():
     return _render_dashboard(student_data, csv_content.decode("utf-8"))
 
 
-@app.post("/cloudinary/source")
+@app.post("/cloudinary/source")  # Keep the existing URL so the current frontend continues to work.
 def store_source_csv():
-    """Validate and store the source student CSV as an authenticated Cloudinary asset."""
+    """Validate and store the source student CSV as a private S3 object."""
     student_data, csv_content, error = _student_data_from_form()
     if error:
         return _render_storage_error(error)
 
     try:
-        upload_to_cloudinary(BytesIO(csv_content), asset_category="source")
+        upload_to_s3(BytesIO(csv_content), asset_category="source")
     except (CloudStorageConfigurationError, CloudStorageUploadError) as error:
         return _storage_result(
             student_data,
             csv_content.decode("utf-8"),
             "source",
-            message=_cloudinary_failure_message(error),
+            message=_s3_failure_message(error),
             success=False,
             status_code=503 if isinstance(error, CloudStorageConfigurationError) else 502,
         )
@@ -248,9 +248,9 @@ def store_source_csv():
     )
 
 
-@app.post("/cloudinary/report")
+@app.post("/cloudinary/report")  # Keep the existing URL so the current frontend continues to work.
 def store_analyzed_report():
-    """Generate and store the analyzed student report in memory."""
+    """Generate and store the analyzed student report as a private S3 object."""
     student_data, _, error = _student_data_from_form()
     if error:
         return _render_storage_error(error)
@@ -259,13 +259,13 @@ def store_analyzed_report():
     analyzed_students = classify_risk(student_data)
     report_csv = analyzed_students.to_csv(index=False).encode("utf-8")
     try:
-        upload_to_cloudinary(BytesIO(report_csv), asset_category="report")
+        upload_to_s3(BytesIO(report_csv), asset_category="report")
     except (CloudStorageConfigurationError, CloudStorageUploadError) as error:
         return _storage_result(
             student_data,
             source_csv,
             "report",
-            message=_cloudinary_failure_message(error),
+            message=_s3_failure_message(error),
             success=False,
             status_code=503 if isinstance(error, CloudStorageConfigurationError) else 502,
         )

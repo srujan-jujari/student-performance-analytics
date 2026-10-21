@@ -123,7 +123,7 @@ def test_dashboard_escapes_uploaded_text_in_table_and_json(client):
     assert b"<img src=x onerror=alert(1)>" not in response.data
 
 
-def test_dashboard_shows_cloudinary_storage_actions(client):
+def test_dashboard_shows_storage_actions(client):
     response = upload_csv(client, CSV_CONTENT.encode())
 
     assert response.status_code == 200
@@ -218,7 +218,7 @@ def test_upload_rejects_post_without_csrf_token(client):
 
 def test_store_source_csv_uploads_only_validated_csv(client, monkeypatch):
     mock = Mock(return_value={"public_id": "private/source.csv"})
-    monkeypatch.setattr(app_module, "upload_to_cloudinary", mock)
+    monkeypatch.setattr(app_module, "upload_to_s3", mock)
 
     response = post_storage_action(client, "/cloudinary/source")
 
@@ -238,7 +238,7 @@ def test_store_source_csv_uploads_only_validated_csv(client, monkeypatch):
 
 def test_form_fallback_keeps_dashboard_and_action_specific_success(client, monkeypatch):
     mock = Mock(return_value={"public_id": "private/source.csv"})
-    monkeypatch.setattr(app_module, "upload_to_cloudinary", mock)
+    monkeypatch.setattr(app_module, "upload_to_s3", mock)
     response = client.post(
         "/cloudinary/source",
         data={
@@ -260,7 +260,7 @@ def test_store_report_contains_percentage_and_risk_without_recalculating_in_rout
     client, monkeypatch
 ):
     mock = Mock(return_value={"public_id": "private/report.csv"})
-    monkeypatch.setattr(app_module, "upload_to_cloudinary", mock)
+    monkeypatch.setattr(app_module, "upload_to_s3", mock)
 
     response = post_storage_action(client, "/cloudinary/report")
 
@@ -277,11 +277,11 @@ def test_store_report_contains_percentage_and_risk_without_recalculating_in_rout
 
 
 @pytest.mark.parametrize("endpoint", ["/cloudinary/source", "/cloudinary/report"])
-def test_storage_routes_validate_data_before_calling_cloudinary(
+def test_storage_routes_validate_data_before_calling_s3(
     client, monkeypatch, endpoint
 ):
     mock = Mock()
-    monkeypatch.setattr(app_module, "upload_to_cloudinary", mock)
+    monkeypatch.setattr(app_module, "upload_to_s3", mock)
 
     response = post_storage_action(
         client,
@@ -300,17 +300,17 @@ def test_storage_routes_validate_data_before_calling_cloudinary(
     [
         (
             CloudStorageConfigurationError(
-                "Missing required Cloudinary environment variables: CLOUDINARY_API_SECRET."
+                "Missing required AWS environment variables: AWS_REGION."
             ),
             503,
-            "Cloudinary storage is not configured",
+            "Amazon S3 storage is not configured",
         ),
         (
             CloudStorageUploadError(
-                "Cloudinary upload failed. Check the server configuration and retry."
+                "Amazon S3 could not store the file. Check IAM permissions and server configuration."
             ),
             502,
-            "Cloudinary could not store the file",
+            "Amazon S3 could not store the file",
         ),
     ],
 )
@@ -319,7 +319,7 @@ def test_storage_route_shows_safe_failure_message(
     client, monkeypatch, storage_error, expected_status, expected_message, endpoint
 ):
     mock = Mock(side_effect=storage_error)
-    monkeypatch.setattr(app_module, "upload_to_cloudinary", mock)
+    monkeypatch.setattr(app_module, "upload_to_s3", mock)
 
     response = post_storage_action(client, endpoint)
 
@@ -331,7 +331,7 @@ def test_storage_route_shows_safe_failure_message(
 
 def test_storage_routes_require_csrf_token(client, monkeypatch):
     mock = Mock()
-    monkeypatch.setattr(app_module, "upload_to_cloudinary", mock)
+    monkeypatch.setattr(app_module, "upload_to_s3", mock)
 
     response = client.post(
         "/cloudinary/source",

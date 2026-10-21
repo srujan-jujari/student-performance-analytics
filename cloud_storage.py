@@ -1,123 +1,95 @@
-"""Authenticated in-memory uploads to Cloudinary."""
+"""Private, in-memory CSV uploads to Amazon S3."""
 
 import os
+from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO, Literal
 from uuid import uuid4
 
-import cloudinary
-from cloudinary import uploader
-from cloudinary.exceptions import Error as CloudinaryError
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError, PartialCredentialsError
 from dotenv import load_dotenv
 
 DOTENV_PATH = Path(__file__).resolve().parent / ".env"
-REQUIRED_CREDENTIALS = (
-    "CLOUDINARY_CLOUD_NAME",
-    "CLOUDINARY_API_KEY",
-    "CLOUDINARY_API_SECRET",
-)
 
 
 class CloudStorageConfigurationError(ValueError):
-    """Raised when required Cloudinary environment settings are unavailable."""
+    """Raised when required S3 configuration or credentials are unavailable."""
 
 
 class CloudStorageUploadError(RuntimeError):
-    """Raised when Cloudinary rejects or cannot complete an upload."""
+    """Raised when S3 rejects or cannot complete an upload."""
 
 
-def _configure_cloudinary() -> None:
-    """Load local environment settings and configure the Cloudinary SDK."""
+def _create_s3_client():
+    """Create an S3 client using environment credentials locally or an IAM role in AWS."""
     load_dotenv(dotenv_path=DOTENV_PATH, override=False)
 
-    credentials = {
-        name: os.getenv(name, "").strip()
-        for name in REQUIRED_CREDENTIALS
-    }
-    missing_credentials = [
-        name for name, value in credentials.items() if not value
-    ]
-    if missing_credentials:
-        names = ", ".join(missing_credentials)
+    region = os.getenv("AWS_REGION", "").strip()
+    bucket = os.getenv("AWS_S3_BUCKET", "").strip()
+    if not region or not bucket:
+        missing = [name for name, value in (("AWS_REGION", region), ("AWS_S3_BUCKET", bucket)) if not value]
         raise CloudStorageConfigurationError(
-            f"Missing required Cloudinary environment variables: {names}."
+            "Missing required AWS environment variables: " + ", ".join(missing) + "."
         )
 
-    cloudinary.config(
-        cloud_name=credentials["CLOUDINARY_CLOUD_NAME"],
-        api_key=credentials["CLOUDINARY_API_KEY"],
-        api_secret=credentials["CLOUDINARY_API_SECRET"],
-        secure=True,
-    )
+    access_key = os.getenv("AWS_ACCESS_KEY_ID", "").strip()
+    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY", "").strip()
+    if bool(access_key) != bool(secret_key):
+        raise CloudStorageConfigurationError(
+            "Set both AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, or neither when using an IAM role."
+        )
+
+    try:
+        if access_key and secret_key:
+            client = boto3.client(
+                "s3", region_name=region,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+            )
+        else:
+            # Uses the standard AWS credential chain, including an attached IAM role.
+            client = boto3.client("s3", region_name=region)
+    except (NoCredentialsError, PartialCredentialsError) as error:
+        raise CloudStorageConfigurationError(
+            "AWS credentials are unavailable. Configure local credentials or attach an IAM role."
+        ) from error
+    return client, bucket
 
 
-def upload_to_cloudinary(
+def upload_to_s3(
     file: BinaryIO | bytes | bytearray,
     *,
     asset_category: Literal["source", "report"],
-) -> dict[str, str | None]:
-    """Upload an in-memory CSV or report as an authenticated raw Cloudinary asset.
+) -> dict[str, str]:
+    """Upload an in-memory CSV to a private S3 bucket and return safe object metadata.
 
-    Each upload receives a unique, category-specific public ID. Overwriting is
-    disabled so repeated uploads do not replace an earlier asset.
-    The returned mapping contains only the public ID, resource type, and format.
-    It deliberately excludes delivery URLs and credential data. Authenticated
-    Cloudinary assets require signed delivery for access.
-
-    Args:
-        file: Bytes or a binary file-like stream. Local file paths are not accepted.
-        asset_category: Whether this is an original source CSV or generated report.
-
-    Raises:
-        TypeError: If ``file`` is not bytes or a readable file-like object.
-        ValueError: If ``asset_category`` is not ``"source"`` or ``"report"``.
-        CloudStorageConfigurationError: If Cloudinary credentials are missing.
-        CloudStorageUploadError: If upload fails or Cloudinary returns incomplete
-            or unexpected metadata.
+    The object key is unique per upload. No public ACL is set; bucket public access
+    should remain blocked. The function returns no public URL or credential data.
     """
-    if not isinstance(file, (bytes, bytearray)) and not callable(
-        getattr(file, "read", None)
-    ):
+    if not isinstance(file, (bytes, bytearray)) and not callable(getattr(file, "read", None)):
         raise TypeError("file must be bytes or a readable in-memory file object.")
     if asset_category not in {"source", "report"}:
         raise ValueError("asset_category must be 'source' or 'report'.")
 
-    _configure_cloudinary()
-    public_id = (
-        "student-performance-analytics/"
-        f"student_performance_{asset_category}_{uuid4().hex}.csv"
-    )
+    client, bucket = _create_s3_client()
+    object_key = f"student-performance-analytics/{asset_category}/{asset_category}_{uuid4().hex}.csv"
+    body = BytesIO(bytes(file)) if isinstance(file, (bytes, bytearray)) else file
 
     try:
-        result = uploader.upload(
-            bytes(file) if isinstance(file, bytearray) else file,
-            public_id=public_id,
-            resource_type="raw",
-            type="authenticated",
-            overwrite=False,
+        client.upload_fileobj(
+            body,
+            bucket,
+            object_key,
+            ExtraArgs={
+                "ContentType": "text/csv; charset=utf-8",
+                "ServerSideEncryption": "AES256",
+            },
         )
-    except CloudinaryError as error:
+    except (ClientError, BotoCoreError, NoCredentialsError, PartialCredentialsError) as error:
+        # Keep details in server logs only; never return AWS response details to users.
         raise CloudStorageUploadError(
-            "Cloudinary upload failed. Check the server configuration and retry."
+            "Amazon S3 could not store the file. Check IAM permissions and server configuration."
         ) from error
 
-    if (
-        not isinstance(result, dict)
-        or not isinstance(result.get("public_id"), str)
-        or result.get("resource_type") != "raw"
-    ):
-        raise CloudStorageUploadError(
-            "Cloudinary returned incomplete or unexpected upload metadata."
-        )
-
-    asset_format = result.get("format")
-    if asset_format is not None and not isinstance(asset_format, str):
-        raise CloudStorageUploadError(
-            "Cloudinary returned incomplete or unexpected upload metadata."
-        )
-
-    return {
-        "public_id": result["public_id"],
-        "resource_type": "raw",
-        "format": asset_format,
-    }
+    return {"bucket": bucket, "key": object_key, "content_type": "text/csv; charset=utf-8"}
